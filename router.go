@@ -15,7 +15,7 @@ import (
 
 /*
 
-	My implementation does not support dropping routers. It only saves the neigbour
+	My implementation does not support dropping routers. It only saves the neighbour
 	that is closest to the destination in the routing table.
 
  */
@@ -109,13 +109,15 @@ func (r *Routers) connect(){
 	for a:= 0; a < ROUTER_COUNT; a++ {
 		for i := 0; i < ROUTER_COUNT; i++ {
 			for j := 0; j < ROUTER_COUNT; j++ {
-				for k := 0; k < ROUTER_COUNT; k++ {
-					if r[i].routingTable[k].hops > r[j].routingTable[k].hops+1 && r[i].routingTable[j].hops == 1 {
-						r[i].routingTable[k].neighbour = r[j].myId
-						r[i].routingTable[k].hops = r[j].routingTable[k].hops + 1
-						r[i].routingTable[k].connected = true
-					}
+				if (r[i].routingTable[j].hops == 1){
+					for k := 0; k < ROUTER_COUNT; k++ {
+						if r[i].routingTable[k].hops > r[j].routingTable[k].hops+1 {
+							r[i].routingTable[k].neighbour = r[j].myId
+							r[i].routingTable[k].hops = r[j].routingTable[k].hops + 1
+							r[i].routingTable[k].connected = true
+						}
 
+					}
 				}
 			}
 		}
