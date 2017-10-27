@@ -12,10 +12,16 @@ package main
 import (
 	"fmt"
 	"time"
+	"math/rand"
 )
 
 /*
-	The only packages I used are "fmt" to print lines and "time" to print the time taken to configure.
+	I implemented a synchronous message passing system, where the destination router sends back
+	a confirmation request when it gets the message. The source router listens for the confirmation
+	by using the message id.
+
+	The packages I used are "fmt" to print lines, "math/rand" package to create random numbers
+	for the message IDs and "time" to print the time taken to configure.
 
 	Instructions:
 		1. run "go run *" from the main folder to run this code.
@@ -24,12 +30,17 @@ import (
 
 func main() {
 
+	// Message ID for synchronous message passing.
+	messageId := rand.Intn(100)
+
 	// New message creation.
 	m := message{
+		id:messageId,
 		info:"Hello",
 		destination:2,
 		hops:0,
 	}
+
 
 	// Stats of all the topologies.
 	stats("ring")
@@ -37,14 +48,12 @@ func main() {
 	stats("star")
 	stats("fullyConnected")
 
-
 	// Message passing example.
 	routers.configure("ring")
 	routers[1].broadcast(m)
 
-
-	var input string
-	fmt.Scanln(&input)
+	// Waits for the delivery success of the message
+	routers[1].listen(messageId)
 }
 
 /*
@@ -77,7 +86,7 @@ func stats(topology string){
 		}
 	}
 	fmt.Println()
-	fmt.Println("Average", float64(sum)/float64(ROUTER_COUNT*ROUTER_COUNT))
+	fmt.Println("Average", float64(sum)/float64(ROUTER_COUNT*(ROUTER_COUNT-1)))
 	fmt.Println("Max", max)
 	fmt.Println()
 	fmt.Println("-----------------------------------------DONE-------------------------------------------------------")

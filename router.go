@@ -12,7 +12,6 @@ import (
 	"fmt"
 )
 
-
 /*
 
 	My implementation does not support dropping routers. It only saves the neighbour
@@ -34,25 +33,29 @@ var routers Routers
 // This is the type of the message being passed.
 
 type message struct {
-	destination int
-	info string
-	hops int
+	id int			// Message ID
+	status string	// Message status string
+	source int		// Message source router ID
+	destination int // Message destination router ID
+	info string		// Message content
+	hops int		// No.of hops
 }
 
 // This is the type of the Router object
 
 type Router struct {
-	myId int
-	routingTable RoutingTable
+	myId int					// Router ID
+	routingTable RoutingTable	// Routing Table
+	messageStatus map[int]bool	// Message delivery status map
 }
 
 // This is the type of each row in the Routing table
 
 type RoutingEntry struct {
-	connected bool
-	destination int
-	neighbour int
-	hops int
+	connected bool		// Connection status
+	destination int		// Destination router ID
+	neighbour int		// Neighbour nearest to the destination
+	hops int			// No.of hops to destination
 }
 
 // This is the type of the routing table.
@@ -78,11 +81,12 @@ func (r *Routers) configure(topology string) {
 }
 
 /*
-	routers.instantiate assigns ids to all the routers.
+	routers.instantiate assigns ids and empty message status maps to all the routers.
  */
 
 func (r *Routers) instantiate() {
 	for i:= 0; i < ROUTER_COUNT; i++{
+		routers[i].messageStatus = make(map[int]bool)
 		r[i].myId = i
 	}
 }
@@ -116,7 +120,6 @@ func (r *Routers) connect(){
 							r[i].routingTable[k].hops = r[j].routingTable[k].hops + 1
 							r[i].routingTable[k].connected = true
 						}
-
 					}
 				}
 			}
@@ -130,18 +133,27 @@ func (r *Routers) connect(){
 
 /*
 
-	Implemented: It sends the message to the neighbour that is nearest to the destination router.
+	Implemented: It adds the source router ID and sends the message to the neighbour that
+	is nearest to the destination router.
 
-	Wanted to implement: Iteratively send message to all the neighbours that are connected to the destination router.
-	This would be useful for the router dropping part.
+	Wanted to implement: Iteratively send message to all the neighbours that are connected
+	to the destination router. This would be useful for the router dropping part.
 
 	@params message Takes in the message to be broadcasted.
 
 */
 
-func (r Router) broadcast(m message) {
+func (r *Router) broadcast(m message) {
 	channel := make(chan message)
-	go routers[r.routingTable[m.destination].neighbour].send(m,channel)
+	msg := message {
+		id:m.id,
+		destination:m.destination,
+		source: r.myId,
+		info: m.info,
+		hops: m.hops,
+		status:m.status,
+	}
+	go routers[r.routingTable[m.destination].neighbour].send(msg,channel)
 	go routers[r.routingTable[m.destination].neighbour].receive(channel)
 }
 
@@ -153,23 +165,54 @@ func (r Router) broadcast(m message) {
 
 */
 
-func (r Router) send(m message, c chan message) {
+func (r *Router) send(m message, c chan message) {
+
 	m.hops += 1
 	c <- m
 }
 
 /*
-	This go routine takes in a message channel, reads the outpur if it is for itself, it exits
-	otherwise it rebrodcasts it.
+	listen function waits till the message to the corresponding messageID is reached, if it does it
+	stops the infinite loop and returns.
+
+	@params int					This is the message ID.
+
+*/
+
+func (r *Router) listen(id int) {
+	for (true) {
+		if (routers[1].messageStatus[id]){
+			fmt.Println("Success")
+			return
+		}
+	}
+}
+
+/*
+	This go routine takes in a message channel, reads the output if it is  not for itself it
+	rebroadcasts it, otherwise it will check whether it's status is "Delivered" If it is then
+	it set's the message delivery status to true. Otherwise it sends a delivered status to the
+	sender.
 
 	@params message channel		This is the message channel used by the goroutines
 
 */
 
-func (r Router) receive(c chan message) {
+func (r *Router) receive(c chan message) {
 	msg := <- c
 	if (r.myId == msg.destination){
-		fmt.Println("Message: ", msg.info,"\nHops: ",msg.hops)
+		if (msg.status == "Delivered"){
+			r.messageStatus[msg.id] = true
+		}else{
+			success := message{
+				id: msg.id,
+				destination:msg.source,
+				hops: 0,
+				info: msg.info,
+				status:"Delivered",
+			}
+			r.broadcast(success)
+		}
 	}else{
 		r.broadcast(msg)
 	}
