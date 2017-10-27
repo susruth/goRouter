@@ -1,12 +1,37 @@
+/*
+Author : Nadimpalli Susruth
+UID: U6106064
+Email : susruth.praker@gmail.com
+Created Date : 14/10/17
+Updated Date : 27/10/17
+*/
+
 package main
 
 import (
 	"fmt"
 )
 
-const ROUTER_COUNT = 5
+
+/*
+
+	My implementation does not support dropping routers. It only saves the neigbour
+	that is closest to the destination in the routing table.
+
+ */
+
+
+
+// The number of routers can be set over here.
+const ROUTER_COUNT = 25
+
+// A very large number simulating infinite.
 const INFINITY = 99999999
+
 var routers Routers
+
+
+// This is the type of the message being passed.
 
 type message struct {
 	destination int
@@ -14,30 +39,47 @@ type message struct {
 	hops int
 }
 
+// This is the type of the Router object
+
 type Router struct {
 	myId int
-	routingTable [ROUTER_COUNT]RoutingEntry
+	routingTable RoutingTable
 }
+
+// This is the type of each row in the Routing table
 
 type RoutingEntry struct {
 	connected bool
 	destination int
-	neighbours []Neighbour
+	neighbour int
+	hops int
 }
 
-type Neighbour struct {
-	hops int
-	id int
-}
+// This is the type of the routing table.
+
+type RoutingTable [ROUTER_COUNT]RoutingEntry
+
+// This is the array of all the routers
+
 type Routers [ROUTER_COUNT]Router
 
-//////// Discovery
 
+
+//////// Router Discovery Phase.
+
+/*
+	routers.configure takes in a string and initializes the routers with the given topology.
+	@params string
+ */
 func (r *Routers) configure(topology string) {
 	r.instantiate()
 	r.setup(topology)
 	r.connect()
 }
+
+/*
+	routers.instantiate assigns ids to all the routers.
+ */
 
 func (r *Routers) instantiate() {
 	for i:= 0; i < ROUTER_COUNT; i++{
@@ -45,20 +87,35 @@ func (r *Routers) instantiate() {
 	}
 }
 
+/*
+	routers.setup assigns a basic routing tables depending on the given topology to all the routers.
+	this routing table only consists of the info about their immediate neighbours.
+	@params string
+ */
+
 func (r *Routers) setup(topology string){
 	for i:= 0; i < ROUTER_COUNT; i++{
 		r[i].routingTable = configureConnections(topology, r[i].myId)
 	}
 }
 
+/*
+	routers.connect iteratively completes the routing tables depending
+	on their neighbours routing table entries.
+
+ */
 
 func (r *Routers) connect(){
-	for i:= 0; i < ROUTER_COUNT; i++{
-		for j:= 0; j < ROUTER_COUNT; j++{
-			for k:= 0; k < len(r[i].routingTable[j].neighbours); k++{
-				if (r[i].routingTable[j].neighbours[k].hops > minHops(r[r[i].routingTable[j].neighbours[k].id].routingTable[j].neighbours) + 1){
-					r[i].routingTable[j].neighbours[k].hops = minHops(r[r[i].routingTable[j].neighbours[k].id].routingTable[j].neighbours) + 1
-					fmt.Println(r[i].routingTable[j].neighbours[k])
+	for a:= 0; a < ROUTER_COUNT; a++ {
+		for i := 0; i < ROUTER_COUNT; i++ {
+			for j := 0; j < ROUTER_COUNT; j++ {
+				for k := 0; k < ROUTER_COUNT; k++ {
+					if r[i].routingTable[k].hops > r[j].routingTable[k].hops+1 && r[i].routingTable[j].hops == 1 {
+						r[i].routingTable[k].neighbour = r[j].myId
+						r[i].routingTable[k].hops = r[j].routingTable[k].hops + 1
+						r[i].routingTable[k].connected = true
+					}
+
 				}
 			}
 		}
@@ -66,62 +123,46 @@ func (r *Routers) connect(){
 }
 
 
-//func (r *Routers) connect(){
-//	for i:= 0; i < ROUTER_COUNT; i++{
-//		for j:= 0; j < ROUTER_COUNT; j++{
-//			for k:= 0; k < ROUTER_COUNT; k++{
-//				if (r[i].routingTable[k].neighbour.hops > r[i].routingTable[j].neighbour.hops + 1){
-//					r[i].routingTable[k].neighbour.id = r[i].routingTable[j].neighbour.id
-//					r[i].routingTable[k].neighbour.hops = r[i].routingTable[j].neighbour.hops + 1
-//					r[i].routingTable[k].connected = true
-//
-//				}
-//
-//			}
-//		}
-//	}
-//
-//}
-
-//
-//func connect(){
-//	for _,router := range routers{
-//		for _,entry := range router.routingTable{
-//			for _,neighbour := range entry.neighbours{
-//				if(routers[neighbour.id].routingTable[entry.destination].connected && neighbour.hops > minHops(routers[neighbour.id].routingTable[entry.destination].neighbours)+1){
-//					neighbour.hops = minHops(routers[neighbour.id].routingTable[entry.destination].neighbours)+1
-//				}
-//			}
-//			entry.connected = true
-//		}
-//	}
-//}
-
-func minHops(neighbours []Neighbour) int {
-	hops := INFINITY
-	for _,neighbour := range neighbours{
-		if (hops > neighbour.hops){
-			hops = neighbour.hops
-		}
-	}
-	return hops
-}
+/////////// Router Message Passing Part
 
 
-/////////// Message Passing
+/*
 
+	Implemented: It sends the message to the neighbour that is nearest to the destination router.
+
+	Wanted to implement: Iteratively send message to all the neighbours that are connected to the destination router.
+	This would be useful for the router dropping part.
+
+	@params message Takes in the message to be broadcasted.
+
+*/
 
 func (r Router) broadcast(m message) {
 	channel := make(chan message)
-	nearestNeighbour := findNearestNeighbour(r.routingTable[m.destination]);
-	go routers[nearestNeighbour.id].send(m,channel)
-	go routers[nearestNeighbour.id].receive(channel)
+	go routers[r.routingTable[m.destination].neighbour].send(m,channel)
+	go routers[r.routingTable[m.destination].neighbour].receive(channel)
 }
+
+/*
+	This go routine takes in a message and a message channel, and writes the message to the channel.
+
+	@params message				This is the message.
+	@params message channel		This is the message channel used by the goroutines
+
+*/
 
 func (r Router) send(m message, c chan message) {
 	m.hops += 1
 	c <- m
 }
+
+/*
+	This go routine takes in a message channel, reads the outpur if it is for itself, it exits
+	otherwise it rebrodcasts it.
+
+	@params message channel		This is the message channel used by the goroutines
+
+*/
 
 func (r Router) receive(c chan message) {
 	msg := <- c
@@ -130,36 +171,4 @@ func (r Router) receive(c chan message) {
 	}else{
 		r.broadcast(msg)
 	}
-}
-
-func (r Router) kill(){
-	for i := 0; i < ROUTER_COUNT; i++{
-		for _, neighbour := range routers[i].routingTable[r.myId].neighbours{
-			neighbour.hops = INFINITY
-			routers[i].routingTable[r.myId].connected = false
-		}
-		for j := 0; j < ROUTER_COUNT; j++{
-			for _, neighbour := range routers[i].routingTable[j].neighbours {
-				if (neighbour.id == r.myId) {
-					neighbour.hops = INFINITY
-				}
-			}
-		}
-	}
-}
-
-
-////////// Helper functions
-
-func findNearestNeighbour(entry RoutingEntry) Neighbour {
-	nearest := Neighbour{
-		id: 0,
-		hops:INFINITY,
-	}
-	for _,neighbour := range entry.neighbours{
-		if (nearest.hops > neighbour.hops){
-			nearest = neighbour
-		}
-	}
-	return nearest
 }

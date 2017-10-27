@@ -1,133 +1,155 @@
+/*
+Author : Nadimpalli Susruth
+UID: U6106064
+Email : susruth.praker@gmail.com
+Created Date : 14/10/17
+Updated Date : 27/10/17
+*/
+
 package main
 
-import "fmt"
+/*
+	configureConnections is a switch statement that can be used to select the required topology.
+	And it returns the routing table of the given router ID as the output.
 
-func configureConnections(topology string, id int) [ROUTER_COUNT]RoutingEntry {
-	var table = [ROUTER_COUNT]RoutingEntry{}
+	@params string takes in the topology string and the router's id.
+	@returns It returns the routing table of the given router.
+
+ */
+
+func configureConnections(topology string, id int) RoutingTable {
+	var table = RoutingTable{}
 	switch (topology){
 	case "ring":
 		table = ring(id)
 		break
-	//case "line":
-	//	line()
-	//	break
-	//case "star":
-	//	table = star(id)
-	//	break
-	////case "fullyConnected":
-	//	fullyConnected()
-	//	break
-	//case "tree":
-	//	tree()
-	//	break
+	case "line":
+		table = line(id)
+		break
+	case "star":
+		table = star(id)
+		break
+	case "fullyConnected":
+		table = fullyConnected(id)
+		break
 	}
 	return table
 }
-//func ring(rtable chan [ROUTER_COUNT]RoutingEntry) {
-//	var routingTable :[ROUTER_COUNT]chan RoutingEntry);
-//	for i := 1 ; i < ROUTER_COUNT; i++ {
-//		for j := 1; j < ROUTER_COUNT; j++ {
-//			routingTable[i].destination = j
-//			if ((ROUTER_COUNT + i - j) % ROUTER_COUNT == 1 || (ROUTER_COUNT + i - j) % ROUTER_COUNT == ROUTER_COUNT - 1) {
-//				routingTable[i].connected = true
-//			}
-//		}
-//	}
-//	rtable = routingTable;
-//}
+
+/*
+	Ring Topology:
+		In this topology all the routers are connected in a chain.
+
+	ring takes in the id of the router and returns the routing table for the Ring Topology.
+	@params id : int takes in the id of  the router and returns a routing table.
+	@returns RoutingTable routing table of the given router.
+
+ */
 
 
-func ring(id int) [ROUTER_COUNT]RoutingEntry {
-	table := [ROUTER_COUNT]RoutingEntry{}
+func ring(id int) RoutingTable {
+	table := RoutingTable{}
 	for j:= 0; j < ROUTER_COUNT; j++ {
 		table[j].destination = j
-		for i :=  0; i < 2; i++ {
-			table[j].neighbours[i].hops = INFINITY
-			if ((ROUTER_COUNT + id - j) % ROUTER_COUNT == 1 || (ROUTER_COUNT + id - j) % ROUTER_COUNT == ROUTER_COUNT - 1) {
-				table[j].connected = true
-				table[j].neighbours[i].id = j
-				table[j].neighbours[i].hops = 1
-			}else if (j == id){
-				table[j].connected = true
-				table[j].neighbours[i].hops = 0
-				table[j].neighbours[i].id = j
-			}
+		table[j].hops = INFINITY
+		if ((ROUTER_COUNT + id - j) % ROUTER_COUNT == 1 || (ROUTER_COUNT + id - j) % ROUTER_COUNT == ROUTER_COUNT - 1) {
+			table[j].connected = true
+			table[j].neighbour = j
+			table[j].hops = 1
+		}else if (j == id){
+			table[j].connected = true
+			table[j].hops = 0
+			table[j].neighbour = j
 		}
 	}
-	fmt.Println(table)
 	return table
 }
 
+/*
+	Line/Bus Topology:
+		In this topology all the routers are connected in a line.
 
-//func star(id int) [ROUTER_COUNT]RoutingEntry {
-//	table := [ROUTER_COUNT]RoutingEntry{}
-//	if (id == 0){
-//		for j:= 1; j < ROUTER_COUNT; j++ {
-//			table[j].connected = true
-//			table[j].destination = j
-//			table[j].neighbour.hops = 1
-//		}
-//	} else {
-//		for j:= 1; j < ROUTER_COUNT; j++ {
-//			table[j].destination = j
-//			table[j].neighbour.hops = INFINITY
-//		}
-//		table[0].connected = true
-//		table[0].destination = 0
-//		table[0].neighbour.hops = 1
-//	}
-//	table[id].neighbour.hops = 0
-//	table[id].connected = true
-//	table[id].neighbour.id = id
-//	return table
-//}
-//
-//func line() {
-//	for i := 1 ; i < ROUTER_COUNT; i++{
-//		routers[i].myId = i;
-//		routers[i].connections = [ROUTER_COUNT]int{(ROUTER_COUNT-1+i) % ROUTER_COUNT,(ROUTER_COUNT+1+i) % ROUTER_COUNT}
-//	}
-//	routers[1].connections =  [ROUTER_COUNT]int{2}
-//	routers[ROUTER_COUNT-1].connections =  [ROUTER_COUNT]int{ROUTER_COUNT-2}
-//
-//}
-//
-//func fullyConnected(){
-//	for i := 1 ; i < ROUTER_COUNT; i++{
-//		routers[i].myId = i;
-//		for j := 0; j < ROUTER_COUNT; j++ {
-//			routers[i].connections[j] = j
-//		}
-//	}
-//	fmt.Println(routers)
-//}
-//
-//
-//func tree() {
-//	stars := int(math.Floor(math.Sqrt(float64(ROUTER_COUNT))))
-//	for i:= 1; i < ROUTER_COUNT; i += stars {
-//		routers[i].myId = i
-//		for j := 1; j < stars && i+j < ROUTER_COUNT ; j++ {
-//			routers[i].connections[i+j] = i+j
-//			routers[i+j].myId = i+j
-//			routers[i+j].connections[i] = i
-//		}
-//		for k:= 1; k < ROUTER_COUNT; k += stars {
-//			routers[i].connections[k] = k
-//		}
-//	}
-//}
-//
-//func torus() {
-//	cycles := int(math.Floor(math.Cbrt(float64(ROUTER_COUNT))))
-//	for i:= 1; i < ROUTER_COUNT; i += cycles^2 {
-//		for j:= 1; j< cycles^2 && i+j < ROUTER_COUNT; j += cycles {
-//			for k:= 1; k< cycles && i+j+k < ROUTER_COUNT; k++ {
-//				routers[i].connections[i+j+k] = i+j+k
-//				routers[i+j+k].myId = i+j+k
-//				routers[i+j+k].connections[i] = i
-//			}
-//		}
-//	}
-//
-//}
+	line takes in the id of the router and returns the routing table for the Line/Bus Topology.
+	@params id : int takes in the id of  the router and returns a routing table.
+	@returns RoutingTable routing table of the given router.
+
+*/
+
+func line(id int) RoutingTable {
+	table := RoutingTable{}
+	for j:= 0; j < ROUTER_COUNT; j++ {
+		table[j].destination = j
+		table[j].hops = INFINITY
+		if (id + 1 == j || id - 1 == j) {
+			table[j].connected = true
+			table[j].neighbour = j
+			table[j].hops = 1
+		}else if (j == id){
+			table[j].connected = true
+			table[j].hops = 0
+			table[j].neighbour = j
+		}
+	}
+	return table
+}
+
+/*
+	Star Topology:
+		In this topology all the routers are connected to a hub router which relays information
+	between any two routers on the network.
+
+	star takes in the id of the router and returns the routing table for the Star Topology.
+	@params id : int takes in the id of  the router and returns a routing table.
+	@returns RoutingTable routing table of the given router.
+
+*/
+
+func star(id int) RoutingTable {
+	table := RoutingTable{}
+
+
+	if id == 0{
+		for j:= 0; j < ROUTER_COUNT; j++ {
+			table[j].destination = j;
+			table[j].hops = 1;
+			table[j].connected = true;
+		}
+		table[id].hops = 0;
+	}else {
+		for j:= 0; j < ROUTER_COUNT; j++ {
+			table[j].destination = j;
+			table[j].hops = INFINITY;
+			table[j].connected = false;
+			if (j == 0){
+				table[j].hops = 1;
+				table[j].connected = true;
+			}
+		}
+		table[id].hops = 0;
+	}
+	return table
+}
+
+/*
+	FullyConnected Topology:
+		In this topology all the routers are connected to each other.
+
+	fullyConnected takes in the id of the router and returns the routing table for the FullyConnected Topology.
+	@params id : int takes in the id of  the router and returns a routing table.
+	@returns RoutingTable routing table of the given router.
+
+*/
+
+
+func fullyConnected(id int) RoutingTable {
+	table := RoutingTable{}
+	for j:= 0; j < ROUTER_COUNT; j++ {
+		table[j].destination = j;
+		table[j].hops = 1;
+		table[j].connected = true;
+		if (id == j){
+			table[id].hops = 0;
+		}
+	}
+	return table
+}
